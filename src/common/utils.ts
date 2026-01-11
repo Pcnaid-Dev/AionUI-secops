@@ -4,6 +4,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// Import crypto for Node.js environment (will be available in Electron)
+// Webpack will handle this as an external module
+let nodeCrypto: typeof import('crypto') | null = null;
+try {
+  // Try to load crypto module - this will work in Node.js/Electron environment
+  // Webpack externals configuration will handle this properly
+  nodeCrypto = require('crypto');
+} catch {
+  // Browser environment or crypto not available
+}
+
 export const uuid = (length = 8) => {
   try {
     // Prefer Web Crypto API for browser compatibility
@@ -20,19 +31,13 @@ export const uuid = (length = 8) => {
         .slice(0, length);
     }
 
-    // Node.js environment - use dynamic import to avoid webpack bundling
-    if (typeof process !== 'undefined' && process.versions && process.versions.node) {
-      try {
-        // Dynamic require to avoid webpack bundling issues
-        const cryptoModule = eval('require')('crypto');
-        if (typeof cryptoModule.randomUUID === 'function' && length >= 36) {
-          return cryptoModule.randomUUID();
-        }
-        const bytes = cryptoModule.randomBytes(Math.ceil(length / 2));
-        return bytes.toString('hex').slice(0, length);
-      } catch {
-        // Fall through to fallback
+    // Node.js environment - use crypto module if available
+    if (nodeCrypto) {
+      if (typeof nodeCrypto.randomUUID === 'function' && length >= 36) {
+        return nodeCrypto.randomUUID();
       }
+      const bytes = nodeCrypto.randomBytes(Math.ceil(length / 2));
+      return bytes.toString('hex').slice(0, length);
     }
   } catch {
     // Fallback without crypto
